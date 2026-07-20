@@ -1,6 +1,6 @@
 # cat-apult
 
-Telemetry capture and 3D flight path visualization tools for **Liftoff: FPV Drone Racing**, built for the **Complex Aerial Trajectory Simulation (CATS)** organization.
+Telemetry capture and 3D flight path visualization tools for **Liftoff: FPV Drone Racing**.
 
 `cat-apult` allows you to stream live UDP telemetry data from Liftoff, record your flights into clean CSV logs, and generate beautiful 3D and top-down spatial plots of your aerial trajectories.
 
