@@ -5,7 +5,7 @@ Draw a Liftoff recording in 3D (path colored by speed) plus a top-down view.
 
 Usage:
     python visualize_liftoff.py # the newest recording
-    python visualize_liftoff.py recordings/liftoff_x.csv # a specific file
+    python visualize_liftoff.py "0 full recordings/liftoff_full_x.csv" # a specific file
 
 Saves a PNG next to the CSV and opens an interactive window.
 Note: Liftoff uses Unity axes (Y = up), so altitude is the 'y' column.
@@ -23,9 +23,9 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 def pick_file():
     if len(sys.argv) > 1:
         return Path(sys.argv[1])
-    files = sorted(Path("recordings").glob("liftoff_*.csv"))
+    files = sorted(Path("0 full recordings").glob("liftoff_full_*.csv"))
     if not files:
-        sys.exit("No recordings found in recordings/. Pass a CSV path explicitly.")
+        sys.exit("No recordings found in '0 full recordings/'. Pass a CSV path explicitly.")
     return files[-1]
 
 
