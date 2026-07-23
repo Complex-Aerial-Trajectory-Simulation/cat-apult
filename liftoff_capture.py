@@ -7,7 +7,12 @@ For every recording, two files are written:
   * "0 full recordings/liftoff_full_YYYY-MM-DD_HH-MM-SS.csv"
         all channels: t_wall, t_sim, x, y, z, quaternion, gyro, 4 inputs
   * "1 truncated recordings/liftoff_trunc_YYYY-MM-DD_HH-MM-SS.csv"
-        just: t_wall, x, y, z   (real-world time + position)
+        just: t_sim, x, y, z   (in-game clock + position)
+
+The truncated file uses Liftoff's IN-GAME physics clock, re-zeroed to start at 0 - not
+packet-arrival time. Arrival times jitter wildly (0.1 ms to 277 ms around a 8.9 ms
+median), which would fabricate huge fake accelerations downstream. The full file keeps
+both clocks so t_wall stays available for diagnosing capture-side issues.
 
 x, y, z are NORMALIZED so each recording starts at (0, 0, 0): the first sample's
 position is subtracted from every sample. This is a pure translation, so velocity and
@@ -57,7 +62,7 @@ FULL_COLUMNS = ["t_wall", "t_sim", "x", "y", "z",
                 "qx", "qy", "qz", "qw",
                 "gx", "gy", "gz",
                 "in1", "in2", "in3", "in4"]
-TRUNC_COLUMNS = ["t_wall", "x", "y", "z"]
+TRUNC_COLUMNS = ["t_sim", "x", "y", "z"]
 
 FULL_DIR = Path("0 full recordings")
 TRUNC_DIR = Path("1 truncated recordings")
@@ -71,6 +76,7 @@ class Recorder:
         self.full_writer = self.trunc_writer = None
         self.full_name = self.trunc_name = None
         self.origin = None # (x0, y0, z0) of this recording, for normalization
+        self.t_sim0 = None # first in-game timestamp, so trunc time starts at 0
         self.count = 0
         self.t0 = None
 
@@ -90,6 +96,7 @@ class Recorder:
             self.full_writer.writerow(FULL_COLUMNS)
             self.trunc_writer.writerow(TRUNC_COLUMNS)
             self.origin = None
+            self.t_sim0 = None
             self.count = 0
             self.t0 = time.perf_counter()
             self.recording = True
@@ -114,6 +121,7 @@ class Recorder:
             t_sim, px, py, pz = values[0], values[1], values[2], values[3]
             if self.origin is None:
                 self.origin = (px, py, pz)
+                self.t_sim0 = t_sim
             ox, oy, oz = self.origin
             xn, yn, zn = px - ox, py - oy, pz - oz
             rest = values[4:]  # quat + gyro + inputs
@@ -123,7 +131,7 @@ class Recorder:
                 [f"{t_wall:.4f}", f"{t_sim:.5f}", f"{xn:.5f}", f"{yn:.5f}", f"{zn:.5f}"]
                 + [f"{v:.5f}" for v in rest])
             self.trunc_writer.writerow(
-                [f"{t_wall:.4f}", f"{xn:.5f}", f"{yn:.5f}", f"{zn:.5f}"])
+                [f"{t_sim - self.t_sim0:.5f}", f"{xn:.5f}", f"{yn:.5f}", f"{zn:.5f}"])
             self.count += 1
             c = self.count
         if c % 250 == 0:

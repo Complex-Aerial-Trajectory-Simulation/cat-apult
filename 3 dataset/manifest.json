@@ -1,0 +1,86 @@
+{
+  "config": {
+    "dt": 0.02,
+    "window": 50,
+    "horizon": 40,
+    "stride": 10,
+    "val_frac": 0.15,
+    "test_frac": 0.15,
+    "seed": 7,
+    "val_segments": [],
+    "test_segments": [],
+    "accel_thresh": 4.0,
+    "turn_thresh": 12.0,
+    "smooth": 5,
+    "trunc_dir": "2 checked recordings\\2 2 checked trunc",
+    "out": "3 dataset"
+  },
+  "regime_names": {
+    "0": "CV",
+    "1": "CA",
+    "2": "CT",
+    "3": "MIX"
+  },
+  "splits": {
+    "train": {
+      "segments": [
+        "liftoff_trunc_2026-07-21_21-38-46_seg01.csv",
+        "liftoff_trunc_2026-07-21_21-40-52_seg01.csv",
+        "liftoff_trunc_2026-07-21_21-43-27_seg01.csv",
+        "liftoff_trunc_2026-07-21_21-49-10_seg01.csv",
+        "liftoff_trunc_2026-07-21_21-51-33_seg01.csv",
+        "liftoff_trunc_2026-07-21_21-53-28_seg01.csv",
+        "liftoff_trunc_2026-07-21_21-56-31_seg01.csv",
+        "liftoff_trunc_2026-07-21_21-59-11_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-21-44_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-23-37_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-34-07_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-42-57_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-56-04_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-57-54_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-59-40_seg01.csv",
+        "liftoff_trunc_2026-07-22_12-04-42_seg01.csv",
+        "liftoff_trunc_2026-07-22_12-06-15_seg01.csv",
+        "liftoff_trunc_2026-07-22_12-07-36_seg01.csv",
+        "liftoff_trunc_2026-07-23_15-43-30_seg01.csv"
+      ],
+      "n_windows": 5941,
+      "regime_counts": {
+        "CV": 1264,
+        "CA": 784,
+        "CT": 1900,
+        "MIX": 1993
+      }
+    },
+    "val": {
+      "segments": [
+        "liftoff_trunc_2026-07-21_21-45-06_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-24-57_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-32-52_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-49-00_seg01.csv"
+      ],
+      "n_windows": 1028,
+      "regime_counts": {
+        "CV": 183,
+        "CA": 89,
+        "CT": 356,
+        "MIX": 400
+      }
+    },
+    "test": {
+      "segments": [
+        "liftoff_trunc_2026-07-21_21-47-06_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-25-37_seg01.csv",
+        "liftoff_trunc_2026-07-22_11-45-06_seg01.csv",
+        "liftoff_trunc_2026-07-22_12-08-48_seg01.csv"
+      ],
+      "n_windows": 1195,
+      "regime_counts": {
+        "CV": 315,
+        "CA": 147,
+        "CT": 394,
+        "MIX": 339
+      }
+    }
+  }
+}
