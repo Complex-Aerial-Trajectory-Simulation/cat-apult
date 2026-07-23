@@ -5,24 +5,30 @@ Scan every recording in "0 full recordings" and "1 truncated recordings", detect
 discontinuities caused by drone resets / crash-respawns (position teleports and
 telemetry pauses), and split each flight into clean continuous segments.
 
-WHY NOT DETECT ON SPEED
------------------------
-t_wall is packet-arrival time and UDP packets arrive in bursts, so consecutive
-timestamps can be ~0 apart even during normal motion. speed = distance / dt would
-then blow up and cause false alarms. Instead we detect on quantities that are robust
-to that jitter:
-  * POSITION JUMP  - displacement between consecutive samples > --jump metres
-                     (a drone can't physically move that far in one frame)
-  * TIME GAP       - dt between consecutive samples > --gap seconds
-                     (telemetry actually stopped: menu / reset / respawn)
+WHAT COUNTS AS A BREAK
+----------------------
+Everything here uses `t_sim`, Liftoff's in-game physics clock - never packet-arrival
+time, which jitters far too much to reason about. On the in-game clock a break means
+something physically real:
+  * POSITION JUMP - displacement between consecutive samples > --jump metres.
+                    A drone can't move that far in one physics tick, so this is a
+                    teleport: a reset or crash-respawn.
+  * TIME GAP      - t_sim advanced by > --gap seconds between samples, i.e. physics
+                    genuinely happened that we never received (dropped packets).
+  * CLOCK RESET   - t_sim went backwards or stood still. Liftoff restarts its clock
+                    when you reset the drone, so this is an unambiguous reset marker.
+
+Note a game freeze/stall is NOT a break here: if the sim pauses, no physics advances,
+so t_sim stays continuous and the trajectory really is continuous. (Those stalls used
+to show up as false breaks back when detection ran on arrival time.)
 
 OUTPUT
 ------
 Clean segments are written (each re-zeroed to start at position (0,0,0) and time 0,
 so every segment is a standalone flight) to:
-    3 checked recordings/
-        3 1 checked full/liftoff_full_<ts>_segNN.csv
-        3 2 checked trunc/liftoff_trunc_<ts>_segNN.csv
+    2 checked recordings/
+        2 1 checked full/liftoff_full_<ts>_segNN.csv
+        2 2 checked trunc/liftoff_trunc_<ts>_segNN.csv
 Full + truncated versions of the same flight are split at identical boundaries.
 
 RUN
@@ -39,9 +45,9 @@ from pathlib import Path
 
 FULL_DIR = Path("0 full recordings")
 TRUNC_DIR = Path("1 truncated recordings")
-OUT_DIR = Path("3 checked recordings")
-OUT_FULL = OUT_DIR / "3 1 checked full"
-OUT_TRUNC = OUT_DIR / "3 2 checked trunc"
+OUT_DIR = Path("2 checked recordings")
+OUT_FULL = OUT_DIR / "2 1 checked full"
+OUT_TRUNC = OUT_DIR / "2 2 checked trunc"
 
 FULL_PREFIX, TRUNC_PREFIX = "liftoff_full_", "liftoff_trunc_"
 
@@ -53,7 +59,7 @@ def load_csv(path):
 
 
 def positions(rows):
-    t = [float(r["t_wall"]) for r in rows]
+    t = [float(r["t_sim"]) for r in rows]
     x = [float(r["x"]) for r in rows]
     y = [float(r["y"]) for r in rows]
     z = [float(r["z"]) for r in rows]
@@ -61,17 +67,21 @@ def positions(rows):
 
 
 def detect_breaks(t, x, y, z, gap_s, jump_m):
-    """Return list of dicts describing each break (edge between i-1 and i)."""
+    """
+    Return list of dicts describing each break (edge between i-1 and i), using the
+    in-game clock. See the module docstring for what each kind means.
+    """
     breaks = []
     for i in range(1, len(t)):
         dt = t[i] - t[i - 1]
         disp = math.dist((x[i], y[i], z[i]), (x[i - 1], y[i - 1], z[i - 1]))
-        is_gap = dt > gap_s
-        is_jump = disp > jump_m
-        if is_gap or is_jump:
+        is_reset = dt <= 0                  # clock restarted / stalled -> drone reset
+        is_gap = dt > gap_s                 # real missing physics (dropped packets)
+        is_jump = disp > jump_m             # teleport
+        if is_gap or is_jump or is_reset:
             breaks.append({
                 "index": i, "t": t[i - 1], "dt": dt, "disp": disp,
-                "gap": is_gap, "jump": is_jump,
+                "gap": is_gap, "jump": is_jump, "reset": is_reset,
                 "implied_speed": disp / dt if dt > 1e-9 else float("inf"),
             })
     return breaks
@@ -93,12 +103,15 @@ def write_segment(fieldnames, rows, sl, out_path, renorm):
     seg = [dict(r) for r in rows[sl[0]:sl[1]]]
     if renorm and seg:
         x0, y0, z0 = float(seg[0]["x"]), float(seg[0]["y"]), float(seg[0]["z"])
-        t0 = float(seg[0]["t_wall"])
+        # Re-zero every time column present so each segment is a standalone flight:
+        # full files carry t_wall + t_sim, truncated files carry only t_sim starting from 0.
+        t0 = {c: float(seg[0][c]) for c in ("t_wall", "t_sim") if c in seg[0]}
         for r in seg:
             r["x"] = f"{float(r['x']) - x0:.5f}"
             r["y"] = f"{float(r['y']) - y0:.5f}"
             r["z"] = f"{float(r['z']) - z0:.5f}"
-            r["t_wall"] = f"{float(r['t_wall']) - t0:.4f}"
+            for c, base in t0.items():
+                r[c] = f"{float(r[c]) - base:.5f}"
     with open(out_path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
@@ -118,7 +131,8 @@ def gather_flights():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gap", type=float, default=0.25, help="time-gap threshold (s)")
+    ap.add_argument("--gap", type=float, default=0.25,
+                    help="in-game time-gap threshold (s) = missing physics")
     ap.add_argument("--jump", type=float, default=12.0, help="position-jump threshold (m)")
     ap.add_argument("--min-samples", type=int, default=50, help="drop segments shorter than this")
     ap.add_argument("--no-renorm", action="store_true", help="do NOT re-zero each segment")
@@ -159,9 +173,9 @@ def main():
         print(f"   {len(rows)} samples, {dur:.1f}s")
         if breaks:
             for b in breaks:
-                kind = "gap+jump" if b["gap"] and b["jump"] else ("gap" if b["gap"] else "jump")
-                print(f"   \u26a0 break @ t={b['t']:.2f}s : jump {b['disp']:.1f} m, "
-                      f"dt {b['dt']*1000:.0f} ms (~{b['implied_speed']:.0f} m/s) [{kind}]")
+                kinds = "+".join(k for k in ("reset", "gap", "jump") if b.get(k))
+                print(f"   \u26a0 break @ t_sim={b['t']:.2f}s : jump {b['disp']:.1f} m, "
+                      f"dt {b['dt']*1000:.0f} ms [{kinds}]")
         else:
             print("   no breaks - clean continuous flight")
 
