@@ -107,6 +107,9 @@ python visualize_liftoff.py
 python visualize_liftoff.py "0 full recordings/liftoff_full_YOUR_TIMESTAMP.csv"
 ```
 
+<img width="1690" height="780" alt="liftoff_full_2026-07-23_15-43-30" src="https://github.com/user-attachments/assets/5e411467-697a-4828-a65c-0b9cbfc62280" />
+
+
 Running the visualizer will display an interactive window on your desktop and automatically save a corresponding `.png` plot next to your CSV file.
 
 ### 3. Check and Segment Recordings
@@ -152,6 +155,9 @@ With no arguments it picks the newest segment in `2 checked recordings/2 2 check
 |Green|`CA` - accelerating or braking|
 |Orange|`CT` - coordinated turn|
 |Red|`MIX` - accelerating through a turn, or a regime transition|
+
+<img width="1820" height="910" alt="liftoff_trunc_2026-07-23_15-43-30_seg01_regimes" src="https://github.com/user-attachments/assets/62b94dd3-962a-44d5-affa-b0f26385dffc" />
+
 
 **Tuning.** Raise `--turn-thresh` until only the visibly sharp corners come out orange, and `--accel-thresh` until only the obvious punch-outs and hard brakes come out green; long straights should be blue. Windows overlap, so each window's label is attached to its center and every sample takes the label of the nearest center - the path is drawn once, with no overdraw. Match `--window`, `--horizon`, and `--stride` to whatever you pass to `build_dataset.py` so the labels you see are the labels you get.
 
